@@ -1,8 +1,8 @@
 import argparse
+import os
 import pandas as pd
 import mlflow
 import mlflow.sklearn
-import dagshub
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -15,9 +15,15 @@ from sklearn.metrics import (
     confusion_matrix, ConfusionMatrixDisplay
 )
 
+# ── Autentikasi DagsHub via env vars (aman untuk GitHub Actions) ──
+os.environ['MLFLOW_TRACKING_URI'] = (
+    "https://dagshub.com/shazidian/mlsystem-heart-disease.mlflow"
+)
+mlflow.set_tracking_uri(os.environ['MLFLOW_TRACKING_URI'])
 
-DAGSHUB_USERNAME = 'shazidian'
-DAGSHUB_REPO     = 'mlsystem-heart-disease'
+EXPERIMENT_NAME = 'Heart Disease CI'
+DATASET_PATH    = 'heart_disease_preprocessing.csv'
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -25,6 +31,7 @@ def parse_args():
     parser.add_argument('--max_depth',         type=int, default=5)
     parser.add_argument('--min_samples_split', type=int, default=2)
     return parser.parse_args()
+
 
 def save_confusion_matrix(y_test, y_pred, path):
     cm   = confusion_matrix(y_test, y_pred)
@@ -36,24 +43,19 @@ def save_confusion_matrix(y_test, y_pred, path):
     plt.savefig(path, dpi=150)
     plt.close()
 
+
 def main():
     args = parse_args()
 
-    dagshub.init(
-        repo_owner=DAGSHUB_USERNAME,
-        repo_name=DAGSHUB_REPO,
-        mlflow=True
-    )
-
-    df = pd.read_csv("heart_disease_preprocessing.csv")
-    X  = df.drop("target", axis=1)
-    y  = df["target"]
+    df = pd.read_csv(DATASET_PATH)
+    X  = df.drop('target', axis=1)
+    y  = df['target']
 
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42
     )
 
-    mlflow.set_experiment("Heart Disease CI")
+    mlflow.set_experiment(EXPERIMENT_NAME)
 
     with mlflow.start_run(
         run_name=f"RF-n{args.n_estimators}-d{args.max_depth}-CI"
@@ -87,7 +89,6 @@ def main():
 
         save_confusion_matrix(y_test, y_pred, 'confusion_matrix.png')
         mlflow.log_artifact('confusion_matrix.png')
-
         mlflow.sklearn.log_model(model, "model")
 
         print(f"Accuracy  : {acc:.4f}")
@@ -97,5 +98,7 @@ def main():
         print(f"ROC AUC   : {auc:.4f}")
         print("Selesai! Cek DagsHub → tab Experiments")
 
+
 if __name__ == '__main__':
     main()
+    
