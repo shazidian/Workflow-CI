@@ -48,18 +48,29 @@ jobs:
 
       - name: Get latest MLflow run_id
         run: |
+          echo "Menunggu DagsHub sync..."
+          sleep 30
           RUN_ID=$(python -c "
-          import mlflow, os
+          import mlflow, os, time
           mlflow.set_tracking_uri(os.environ['MLFLOW_TRACKING_URI'])
           client = mlflow.tracking.MlflowClient()
           exp    = client.get_experiment_by_name('Heart Disease CI')
-          runs   = client.search_runs(
-              experiment_ids=[exp.experiment_id],
-              filter_string=\"attributes.status = 'FINISHED'\",
-              order_by=['start_time DESC'],
-              max_results=1
-          )
-          print(runs[0].info.run_id)
+
+          # Coba sampai 5x dengan jeda 15 detik
+          for i in range(5):
+              runs = client.search_runs(
+                  experiment_ids=[exp.experiment_id],
+                  filter_string=\"attributes.status = 'FINISHED'\",
+                  order_by=['start_time DESC'],
+                  max_results=1
+              )
+              if runs:
+                  print(runs[0].info.run_id)
+                  break
+              print(f'Percobaan {i+1}: belum ada run FINISHED, tunggu 15 detik...')
+              time.sleep(15)
+          else:
+              raise Exception('Tidak ada run FINISHED ditemukan setelah 5 percobaan!')
           ")
           echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
           echo "Latest FINISHED run_id: $RUN_ID"
