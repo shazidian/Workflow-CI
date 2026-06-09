@@ -81,6 +81,17 @@ jobs:
             mlruns/
             confusion_matrix.png
 
+      - name: Check downloaded model
+        run: |
+          MODEL_PATH=$(cat model_path.txt)
+
+          echo "=== MLmodel ==="
+          cat "$MODEL_PATH/MLmodel"
+
+          echo ""
+          echo "=== conda.yaml ==="
+          cat "$MODEL_PATH/conda.yaml"
+
       - name: Build Docker Model
         env:
           MLFLOW_TRACKING_URI: ${{ env.MLFLOW_TRACKING_URI }}
@@ -101,7 +112,7 @@ jobs:
           echo "Building Docker dari lokal: $MODEL_PATH"
           mlflow models build-docker \
             -m "$MODEL_PATH" \
-            -n "heart-disease-model"
+            -n "heart-disease-model" \
             --env-manager local
 
       - name: Log in to Docker Hub
