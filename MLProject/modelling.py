@@ -58,7 +58,8 @@ def main():
     mlflow.set_experiment(EXPERIMENT_NAME)
 
     with mlflow.start_run(
-        run_name=f"RF-n{args.n_estimators}-d{args.max_depth}-CI"
+        run_name=f"RF-n{args.n_estimators}-d{args.max_depth}-CI",
+        nested=True
     ):
         mlflow.log_param("n_estimators",      args.n_estimators)
         mlflow.log_param("max_depth",         args.max_depth)
