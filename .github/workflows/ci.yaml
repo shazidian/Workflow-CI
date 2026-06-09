@@ -75,7 +75,16 @@ jobs:
             confusion_matrix.png
 
       - name: Build Docker Model
+        env:
+          MLFLOW_TRACKING_URI: ${{ env.MLFLOW_TRACKING_URI }}
+          MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
+
         run: |
+          export MLFLOW_TRACKING_TOKEN=${{ secrets.DAGSHUB_TOKEN }}
+
+          echo "Building Docker image from run: $RUN_ID"
+
           mlflow models build-docker \
             -m "runs:/${{ env.RUN_ID }}/model" \
             -n "heart-disease-model"
