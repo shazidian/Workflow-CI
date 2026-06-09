@@ -54,7 +54,7 @@ jobs:
           import mlflow, os, time
           mlflow.set_tracking_uri(os.environ['MLFLOW_TRACKING_URI'])
           client = mlflow.tracking.MlflowClient()
-          exp    = client.get_experiment_by_name('Heart Disease CI')
+          exp    = client.get_experiment_by_name('Heart Disease Classification')
 
           # Coba sampai 5x dengan jeda 15 detik
           for i in range(5):
