@@ -54,26 +54,24 @@ jobs:
           import mlflow, os, time
           mlflow.set_tracking_uri(os.environ['MLFLOW_TRACKING_URI'])
           client = mlflow.tracking.MlflowClient()
-          exp    = client.get_experiment_by_name('Heart Disease Classification')
+          exp = client.get_experiment_by_name('Heart Disease Classification')
 
-          # Coba sampai 5x dengan jeda 15 detik
           for i in range(5):
               runs = client.search_runs(
                   experiment_ids=[exp.experiment_id],
-                  filter_string=\"attributes.status = 'FINISHED'\",
                   order_by=['start_time DESC'],
-                  max_results=1
+                  max_results=10
               )
-              if runs:
-                  print(runs[0].info.run_id)
-                  break
-              print(f'Percobaan {i+1}: belum ada run FINISHED, tunggu 15 detik...')
+              for run in runs:
+                  if 'accuracy' in run.data.metrics:
+                      print(run.info.run_id)
+                      exit()
+              print(f'Percobaan {i+1}: belum ada run valid, tunggu 15 detik...')
               time.sleep(15)
-          else:
-              raise Exception('Tidak ada run FINISHED ditemukan setelah 5 percobaan!')
+          raise Exception('Tidak ada run valid!')
           ")
           echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
-          echo "Latest FINISHED run_id: $RUN_ID"
+          echo "Latest run_id: $RUN_ID"
 
       - name: Upload to GitHub
         uses: actions/upload-artifact@v4
@@ -89,9 +87,20 @@ jobs:
           MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
           MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
         run: |
-          echo "Building Docker image from run: $RUN_ID"
+          echo "Download model dari DagsHub..."
+          python -c "
+          import mlflow, os
+          mlflow.set_tracking_uri(os.environ['MLFLOW_TRACKING_URI'])
+          model_uri = f\"runs:/${{ env.RUN_ID }}/model\"
+          local_path = mlflow.artifacts.download_artifacts(model_uri)
+          print(f'Model didownload ke: {local_path}')
+          with open('model_path.txt', 'w') as f:
+              f.write(local_path)
+          "
+          MODEL_PATH=$(cat model_path.txt)
+          echo "Building Docker dari lokal: $MODEL_PATH"
           mlflow models build-docker \
-            -m "runs:/${{ env.RUN_ID }}/model" \
+            -m "$MODEL_PATH" \
             -n "heart-disease-model"
 
       - name: Log in to Docker Hub
