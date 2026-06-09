@@ -46,35 +46,22 @@ jobs:
             -P min_samples_split=2 \
             --env-manager=local
 
-      - name: Get latest FINISHED MLflow run_id
+      - name: Get latest MLflow run_id
         run: |
-          RUN_ID=$(python - <<EOF
-          import mlflow
-          import os
-
-          mlflow.set_tracking_uri(os.environ["MLFLOW_TRACKING_URI"])
-
+          RUN_ID=$(python -c "
+          import mlflow, os
+          mlflow.set_tracking_uri(os.environ['MLFLOW_TRACKING_URI'])
           client = mlflow.tracking.MlflowClient()
-
-          exp = client.get_experiment_by_name("Heart Disease CI")
-
-          runs = client.search_runs(
+          exp    = client.get_experiment_by_name('Heart Disease CI')
+          runs   = client.search_runs(
               experiment_ids=[exp.experiment_id],
-              filter_string="attributes.status = 'FINISHED'",
-              order_by=["start_time DESC"],
+              order_by=['start_time DESC'],
               max_results=1
           )
-
           print(runs[0].info.run_id)
-          EOF
-          )
-
+          ")
           echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
-          echo "Latest FINISHED run_id: $RUN_ID"
-
-      - name: Verify Run ID
-        run: |
-          echo "RUN_ID=${{ env.RUN_ID }}"
+          echo "Latest run_id: $RUN_ID"
 
       - name: Install Python dependencies
         run: pip install requests
@@ -84,13 +71,10 @@ jobs:
         with:
           name: mlflow-model-artifacts
           path: |
+            mlruns/
             confusion_matrix.png
-
+            
       - name: Debug Artifact
-        env:
-          MLFLOW_TRACKING_URI: ${{ env.MLFLOW_TRACKING_URI }}
-          MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
-          MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
         run: |
           python - <<EOF
           import mlflow
@@ -100,12 +84,8 @@ jobs:
 
           client = mlflow.tracking.MlflowClient()
 
-          print("RUN_ID =", "${{ env.RUN_ID }}")
-
           artifacts = client.list_artifacts("${{ env.RUN_ID }}")
-          print("Artifacts:")
-          for a in artifacts:
-              print(a.path)
+          print(artifacts)
           EOF
 
       - name: Build Docker Model
@@ -113,12 +93,15 @@ jobs:
           MLFLOW_TRACKING_URI: ${{ env.MLFLOW_TRACKING_URI }}
           MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
           MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
+
         run: |
-          echo "Building Docker image from run: ${{ env.RUN_ID }}"
+          export MLFLOW_TRACKING_TOKEN=${{ secrets.DAGSHUB_TOKEN }}
+
+          echo "Building Docker image from run: $RUN_ID"
 
           mlflow models build-docker \
             -m "runs:/${{ env.RUN_ID }}/model" \
-            -n heart-disease-model
+            -n "heart-disease-model"
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v2
