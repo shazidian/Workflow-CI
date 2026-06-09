@@ -156,9 +156,8 @@ def main():
 
     # Model Artifact
     mlflow.sklearn.log_model(
-        sk_model=model,
-        artifact_path="model",
-        conda_env="conda.yaml"
+        model,
+        "model"
     )
 
     print(f"Accuracy  : {acc:.4f}")

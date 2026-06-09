@@ -81,17 +81,6 @@ jobs:
             mlruns/
             confusion_matrix.png
 
-      - name: Check downloaded model
-        run: |
-          MODEL_PATH=$(cat model_path.txt)
-
-          echo "=== MLmodel ==="
-          cat "$MODEL_PATH/MLmodel"
-
-          echo ""
-          echo "=== conda.yaml ==="
-          cat "$MODEL_PATH/conda.yaml"
-
       - name: Build Docker Model
         env:
           MLFLOW_TRACKING_URI: ${{ env.MLFLOW_TRACKING_URI }}
@@ -99,20 +88,38 @@ jobs:
           MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
         run: |
           echo "Download model dari DagsHub..."
+
           python -c "
           import mlflow, os
           mlflow.set_tracking_uri(os.environ['MLFLOW_TRACKING_URI'])
-          model_uri = f\"runs:/${{ env.RUN_ID }}/model\"
+          model_uri = f'runs:/${{ env.RUN_ID }}/model'
           local_path = mlflow.artifacts.download_artifacts(model_uri)
           print(f'Model didownload ke: {local_path}')
           with open('model_path.txt', 'w') as f:
               f.write(local_path)
           "
+
           MODEL_PATH=$(cat model_path.txt)
+
+          echo "======================"
+          echo "MLmodel"
+          cat "$MODEL_PATH/MLmodel"
+
+          echo "======================"
+          echo "conda.yaml"
+          cat "$MODEL_PATH/conda.yaml" || true
+
+          echo "======================"
+          echo "python_env.yaml"
+          cat "$MODEL_PATH/python_env.yaml" || true
+
+          echo "======================"
+
           echo "Building Docker dari lokal: $MODEL_PATH"
+
           mlflow models build-docker \
             -m "$MODEL_PATH" \
-            -n "heart-disease-model" \
+            -n heart-disease-model \
             --env-manager local
 
       - name: Log in to Docker Hub
