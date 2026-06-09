@@ -73,6 +73,20 @@ jobs:
           path: |
             mlruns/
             confusion_matrix.png
+            
+      - name: Debug Artifact
+        run: |
+          python - <<EOF
+          import mlflow
+          import os
+
+          mlflow.set_tracking_uri(os.environ["MLFLOW_TRACKING_URI"])
+
+          client = mlflow.tracking.MlflowClient()
+
+          artifacts = client.list_artifacts("${{ env.RUN_ID }}")
+          print(artifacts)
+          EOF
 
       - name: Build Docker Model
         env:
